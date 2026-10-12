@@ -159,12 +159,35 @@ void main() {
     test('addition', () => expect(displayAfter('12+30='), '42'));
     test('subtraction', () => expect(displayAfter('5-8='), '-3'));
     test('multiplication', () => expect(displayAfter('6*7='), '42'));
-    test('division with whole result', () => expect(displayAfter('84/2='), '42'));
+    test(
+      'division with whole result',
+      () => expect(displayAfter('84/2='), '42'),
+    );
     test('division with fractional result', () {
       expect(displayAfter('7/2='), '3.5');
     });
     test('division result is rounded for display', () {
       expect(displayAfter('1/3='), '0.3333333333');
+    });
+  });
+
+  group('Expression line', () {
+    test('is empty with no pending operator', () {
+      final engine = CalculatorEngine();
+      press(engine, '12');
+      expect(engine.expression, '');
+    });
+
+    test('shows running total and pending operator', () {
+      final engine = CalculatorEngine();
+      press(engine, '2+3*');
+      expect(engine.expression, '5 ×');
+    });
+
+    test('clears after equals', () {
+      final engine = CalculatorEngine();
+      press(engine, '2+3=');
+      expect(engine.expression, '');
     });
   });
 

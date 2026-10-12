@@ -72,6 +72,14 @@ class CalculatorEngine {
     return _currentOperand;
   }
 
+  /// Secondary line showing the committed total and pending operator, for
+  /// example `5 ×`. Empty when no operation is pending.
+  String get expression {
+    final pending = _pendingOperator;
+    if (pending == null) return '';
+    return '${formatNumber(_accumulator!)} ${pending.symbol}';
+  }
+
   /// Handles a digit key (0–9).
   void inputDigit(int digit) {
     assert(digit >= 0 && digit <= 9, 'digit must be 0-9');
