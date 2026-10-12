@@ -67,3 +67,41 @@ the display shows `accumulator`.
   moving focus off the keypad. Errors are read as "Error: …".
 - Errors and hints use text and an icon, not color alone.
 - Buttons are at least 48 dp tall.
+
+## Project structure
+
+| File | Purpose |
+| --- | --- |
+| `lib/main.dart` | App entry point; owns the light/dark theme. |
+| `lib/calculator_screen.dart` | UI: display, keypad, theme toggle. Calls the engine inside `setState()`. |
+| `lib/calculator_engine.dart` | Pure-Dart calculator state and transitions (no Flutter imports). |
+| `test/calculator_engine_test.dart` | Unit tests for every state transition, error and AC case. |
+| `test/widget_test.dart` | UI tests: tapping key sequences, theme, semantics, small screens. |
+
+**Why a separate engine?** Keeping the arithmetic and state in a plain Dart
+class means every transition can be unit tested without building widgets, and
+the screen stays a thin layer that only forwards taps and renders derived
+values. An expression parser was not needed because left-to-right evaluation
+only ever combines the running total with one new operand.
+
+## Testing
+
+```bash
+flutter analyze   # static checks
+flutter test      # 59 unit + widget tests
+```
+
+Key regression tests:
+
+- `2 + 3 × 4 = 20` (not 14) guards the left-to-right rule.
+- `8 + 2 × AC 4 + 1 = 5` catches a stale accumulator after AC.
+- `1 + 1 = 5 + 1 = 6` catches a stale result after equals.
+- Layout tests at 320×480, 360×640, 640×360 and 800×1280 catch overflow.
+
+## Release build
+
+```bash
+flutter build apk
+# Output: build/app/outputs/flutter-apk/app-release.apk
+# Rename to YourName_CalculatorApp.apk before submitting.
+```
