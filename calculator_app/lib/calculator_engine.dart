@@ -7,15 +7,18 @@ library;
 
 /// The four arithmetic operations supported by the calculator.
 enum Operator {
-  add('+'),
-  subtract('−'),
-  multiply('×'),
-  divide('÷');
+  add('+', 'plus'),
+  subtract('−', 'minus'),
+  multiply('×', 'times'),
+  divide('÷', 'divided by');
 
-  const Operator(this.symbol);
+  const Operator(this.symbol, this.spokenName);
 
   /// Symbol shown on the button and in the expression line.
   final String symbol;
+
+  /// Words read by screen readers instead of the symbol.
+  final String spokenName;
 
   /// Applies this operator to [left] and [right].
   double apply(double left, double right) {

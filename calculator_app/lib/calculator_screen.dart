@@ -7,8 +7,18 @@ import 'calculator_engine.dart';
 /// All calculator state lives in [CalculatorEngine]. This widget forwards each
 /// tap to the engine inside `setState()` and rebuilds from the engine's
 /// derived values, so the UI never keeps its own copy of the state.
+///
+/// The theme is owned by the app; [isDarkMode] and [onToggleTheme] let this
+/// screen show and change it from the app bar.
 class CalculatorScreen extends StatefulWidget {
-  const CalculatorScreen({super.key});
+  const CalculatorScreen({
+    super.key,
+    required this.isDarkMode,
+    required this.onToggleTheme,
+  });
+
+  final bool isDarkMode;
+  final VoidCallback onToggleTheme;
 
   @override
   State<CalculatorScreen> createState() => _CalculatorScreenState();
@@ -29,7 +39,28 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Calculator')),
+      appBar: AppBar(
+        title: const Text('Calculator'),
+        actions: [
+          IconButton(
+            key: const Key('theme_toggle'),
+            tooltip: widget.isDarkMode
+                ? 'Switch to light theme'
+                : 'Switch to dark theme',
+            onPressed: widget.onToggleTheme,
+            // Cross-fade between the sun and moon icons.
+            icon: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              transitionBuilder: (child, animation) =>
+                  RotationTransition(turns: animation, child: child),
+              child: Icon(
+                widget.isDarkMode ? Icons.light_mode : Icons.dark_mode,
+                key: ValueKey(widget.isDarkMode),
+              ),
+            ),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -57,6 +88,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           _row([
             _CalcButton(
               label: 'AC',
+              semanticLabel: 'All clear',
               key: const Key('key_clear'),
               kind: _ButtonKind.clear,
               flex: 3,
@@ -71,6 +103,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
             _digit(0, flex: 2),
             _CalcButton(
               label: '=',
+              semanticLabel: 'equals',
               key: const Key('key_equals'),
               kind: _ButtonKind.equals,
               flex: 2,
@@ -93,6 +126,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   Widget _operator(Operator operator) => _CalcButton(
     label: operator.symbol,
+    semanticLabel: operator.spokenName,
     key: Key('key_${operator.name}'),
     kind: _ButtonKind.operator,
     onPressed: () => _onOperator(operator),
@@ -126,36 +160,46 @@ class _Display extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (hint != null)
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.info_outline, size: 18, color: scheme.error),
-                const SizedBox(width: 6),
-                Text(
-                  hint!,
-                  key: const Key('hint'),
-                  style: TextStyle(fontSize: 16, color: scheme.error),
-                ),
-              ],
+            Semantics(
+              liveRegion: true,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.info_outline, size: 18, color: scheme.error),
+                  const SizedBox(width: 6),
+                  Text(
+                    hint!,
+                    key: const Key('hint'),
+                    style: TextStyle(fontSize: 16, color: scheme.error),
+                  ),
+                ],
+              ),
             ),
           Text(
             expression,
             key: const Key('expression'),
+            semanticsLabel: expression.isEmpty ? null : 'Pending: $expression',
             style: TextStyle(fontSize: 24, color: scheme.onSurfaceVariant),
           ),
           // Flexible + FittedBox shrink long numbers or short screens instead
           // of overflowing.
+          // liveRegion asks TalkBack to announce the new value when it
+          // changes, without moving focus away from the keypad.
           Flexible(
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                value,
-                key: const Key('display'),
-                maxLines: 1,
-                style: TextStyle(
-                  fontSize: 64,
-                  fontWeight: FontWeight.w300,
-                  color: isError ? scheme.error : scheme.onSurface,
+            child: Semantics(
+              liveRegion: true,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  value,
+                  key: const Key('display'),
+                  maxLines: 1,
+                  semanticsLabel: isError ? 'Error: $value' : value,
+                  style: TextStyle(
+                    fontSize: 64,
+                    fontWeight: FontWeight.w300,
+                    color: isError ? scheme.error : scheme.onSurface,
+                  ),
                 ),
               ),
             ),
@@ -174,12 +218,16 @@ class _CalcButton extends StatelessWidget {
     super.key,
     required this.label,
     required this.onPressed,
+    this.semanticLabel,
     this.kind = _ButtonKind.digit,
     this.flex = 1,
   });
 
   final String label;
   final VoidCallback onPressed;
+
+  /// Spoken label when it differs from [label] (e.g. "times" for ×).
+  final String? semanticLabel;
   final _ButtonKind kind;
   final int flex;
 
@@ -214,7 +262,11 @@ class _CalcButton extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
             ),
           ),
-          child: Text(label, style: const TextStyle(fontSize: 28)),
+          child: Text(
+            label,
+            semanticsLabel: semanticLabel,
+            style: const TextStyle(fontSize: 28),
+          ),
         ),
       ),
     );

@@ -56,3 +56,14 @@ the display shows `accumulator`.
 2. **Error handling**: division by zero, overflow and incomplete input, with a
    clear message and a way to recover.
 3. **Theme toggle**: light and dark themes with a smooth transition.
+   The sun/moon button in the app bar switches every surface; colors fade over
+   400 ms and the calculation in progress is kept.
+
+## Accessibility
+
+- Operator buttons are read as words ("plus", "minus", "times", "divided by",
+  "equals", "All clear") instead of symbols.
+- The display is a live region, so TalkBack announces the new value without
+  moving focus off the keypad. Errors are read as "Error: …".
+- Errors and hints use text and an icon, not color alone.
+- Buttons are at least 48 dp tall.
