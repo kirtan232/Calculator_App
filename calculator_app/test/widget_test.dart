@@ -15,6 +15,27 @@ void main() {
     expect(displayText(tester), '0');
   });
 
+  testWidgets('division by zero shows an error and a digit recovers', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const CalculatorApp());
+
+    for (final key in ['key_8', 'key_divide', 'key_0', 'key_equals']) {
+      await tester.tap(find.byKey(Key(key)));
+      await tester.pump();
+    }
+    expect(displayText(tester), 'Cannot divide by 0');
+
+    await tester.tap(find.byKey(const Key('key_add')));
+    await tester.pump();
+    expect(find.byKey(const Key('hint')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('key_4')));
+    await tester.pump();
+    expect(displayText(tester), '4');
+    expect(find.byKey(const Key('hint')), findsNothing);
+  });
+
   testWidgets('AC button resets the display and expression', (tester) async {
     await tester.pumpWidget(const CalculatorApp());
 

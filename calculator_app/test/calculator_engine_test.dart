@@ -212,6 +212,103 @@ void main() {
     });
   });
 
+  group('Error handling: division by zero', () {
+    test('8 ÷ 0 = shows an error and clears pending state', () {
+      final engine = CalculatorEngine();
+      press(engine, '8/0=');
+      expect(engine.hasError, isTrue);
+      expect(engine.display, CalculatorEngine.divideByZeroMessage);
+      expect(engine.accumulator, isNull);
+      expect(engine.pendingOperator, isNull);
+      expect(engine.expression, '');
+    });
+
+    test(
+      'division by zero mid-chain is caught when the next operator is pressed',
+      () {
+        final engine = CalculatorEngine();
+        press(engine, '8/0+');
+        expect(engine.display, CalculatorEngine.divideByZeroMessage);
+      },
+    );
+
+    test('0 ÷ 5 is allowed (only a zero divisor is an error)', () {
+      expect(displayAfter('0/5='), '0');
+    });
+
+    test('operator during an error is ignored and shows a recovery hint', () {
+      final engine = CalculatorEngine();
+      press(engine, '8/0=+');
+      expect(engine.display, CalculatorEngine.divideByZeroMessage);
+      expect(engine.hint, CalculatorEngine.recoverHint);
+    });
+
+    test('equals during an error is ignored and shows a recovery hint', () {
+      final engine = CalculatorEngine();
+      press(engine, '8/0==');
+      expect(engine.display, CalculatorEngine.divideByZeroMessage);
+      expect(engine.hint, CalculatorEngine.recoverHint);
+    });
+
+    test('a digit after an error starts a fresh calculation', () {
+      final engine = CalculatorEngine();
+      press(engine, '8/0=');
+      press(engine, '4+1=');
+      expect(engine.hasError, isFalse);
+      expect(engine.display, '5');
+    });
+
+    test('AC after an error resets to 0', () {
+      final engine = CalculatorEngine();
+      press(engine, '8/0=C');
+      expect(engine.hasError, isFalse);
+      expect(engine.hint, isNull);
+      expect(engine.display, '0');
+    });
+  });
+
+  group('Error handling: overflow', () {
+    test('result at or above maxMagnitude shows an overflow error', () {
+      final engine = CalculatorEngine();
+      press(engine, '999999999999*999999999999=');
+      expect(engine.hasError, isTrue);
+      expect(engine.display, CalculatorEngine.overflowMessage);
+    });
+
+    test('large result just below the limit is still shown', () {
+      expect(displayAfter('99999999*9999999='), '999999890000001');
+    });
+  });
+
+  group('Error handling: incomplete input', () {
+    test('7 + = keeps state but shows a hint', () {
+      final engine = CalculatorEngine();
+      press(engine, '7+=');
+      // Core contract: equals is ignored and + stays pending.
+      expect(engine.display, '7');
+      expect(engine.pendingOperator, Operator.add);
+      expect(engine.awaitingOperand, isTrue);
+      expect(engine.hasError, isFalse);
+      expect(engine.hint, 'Enter a number after +');
+    });
+
+    test('hint clears on the next key and the calculation can finish', () {
+      final engine = CalculatorEngine();
+      press(engine, '7+=');
+      press(engine, '3');
+      expect(engine.hint, isNull);
+      press(engine, '=');
+      expect(engine.display, '10');
+    });
+
+    test('equals with no operator gives no hint', () {
+      final engine = CalculatorEngine();
+      press(engine, '5=');
+      expect(engine.hint, isNull);
+      expect(engine.display, '5');
+    });
+  });
+
   group('Expression line', () {
     test('is empty with no pending operator', () {
       final engine = CalculatorEngine();

@@ -46,26 +46,48 @@ enum Operator {
 ///
 /// [display] is derived from these fields and never stored.
 ///
+/// Error state: [errorMessage] is set after division by zero or overflow.
+/// While it is set, operators and `=` are ignored; a digit starts a fresh
+/// calculation and `AC` resets.
+///
+/// [hint] is a non-fatal message for incomplete input (for example `7 + =`).
+/// It never changes calculator state and is cleared by the next key press.
+///
 /// Invariant: when [awaitingOperand] is true, [pendingOperator] and
 /// [accumulator] are both non-null.
 class CalculatorEngine {
   /// Maximum number of digits accepted for a single operand.
   static const int maxDigits = 12;
 
+  /// Results with a magnitude at or above this are reported as overflow.
+  static const double maxMagnitude = 1e15;
+
+  static const String divideByZeroMessage = 'Cannot divide by 0';
+  static const String overflowMessage = 'Result too large';
+  static const String recoverHint = 'Enter a number or press AC';
+
   double? _accumulator;
   String _currentOperand = '0';
   Operator? _pendingOperator;
   bool _awaitingOperand = false;
   bool _justEvaluated = false;
+  String? _errorMessage;
+  String? _hint;
 
   double? get accumulator => _accumulator;
   Operator? get pendingOperator => _pendingOperator;
   bool get awaitingOperand => _awaitingOperand;
   bool get justEvaluated => _justEvaluated;
+  String? get errorMessage => _errorMessage;
+  bool get hasError => _errorMessage != null;
+  String? get hint => _hint;
 
-  /// Text for the main display: the running total while waiting for an
-  /// operand or after `=`, otherwise the operand being typed.
+  /// Text for the main display: the error message if there is one, the
+  /// running total while waiting for an operand or after `=`, otherwise the
+  /// operand being typed.
   String get display {
+    final error = _errorMessage;
+    if (error != null) return error;
     if (_awaitingOperand || _justEvaluated) {
       return formatNumber(_accumulator!);
     }
@@ -83,10 +105,11 @@ class CalculatorEngine {
   /// Handles a digit key (0–9).
   void inputDigit(int digit) {
     assert(digit >= 0 && digit <= 9, 'digit must be 0-9');
+    _hint = null;
     final key = digit.toString();
 
-    if (_justEvaluated) {
-      // A digit after `=` starts a brand-new calculation.
+    if (_justEvaluated || hasError) {
+      // A digit after `=` or an error starts a brand-new calculation.
       _resetState();
       _currentOperand = key;
     } else if (_awaitingOperand) {
@@ -102,6 +125,13 @@ class CalculatorEngine {
 
   /// Handles an operator key (+, −, ×, ÷).
   void chooseOperator(Operator operator) {
+    _hint = null;
+    if (hasError) {
+      // There is no valid number to operate on; tell the user how to recover.
+      _hint = recoverHint;
+      return;
+    }
+
     if (_justEvaluated) {
       // Continue calculating from the previous result.
       _pendingOperator = operator;
@@ -118,28 +148,63 @@ class CalculatorEngine {
 
     final operand = double.parse(_currentOperand);
     final pending = _pendingOperator;
-    // Apply the pending operation first, so evaluation is left to right.
-    _accumulator = pending == null
-        ? operand
-        : pending.apply(_accumulator!, operand);
+    if (pending == null) {
+      _accumulator = operand;
+    } else if (!_applyPending(pending, operand)) {
+      return;
+    }
     _pendingOperator = operator;
     _awaitingOperand = true;
   }
 
   /// Handles the `=` key.
   void equals() {
-    final pending = _pendingOperator;
-    // Nothing to apply, or no new operand yet: ignore.
-    if (pending == null || _awaitingOperand) return;
+    _hint = null;
+    if (hasError) {
+      _hint = recoverHint;
+      return;
+    }
 
-    _accumulator = pending.apply(_accumulator!, double.parse(_currentOperand));
+    final pending = _pendingOperator;
+    if (pending == null) return; // Nothing to calculate.
+    if (_awaitingOperand) {
+      // Incomplete input such as `7 + =`: keep the state, explain why.
+      _hint = 'Enter a number after ${pending.symbol}';
+      return;
+    }
+
+    if (!_applyPending(pending, double.parse(_currentOperand))) return;
     _pendingOperator = null;
     _justEvaluated = true;
   }
 
   /// Handles the `AC` (all clear) key: clears the operand, accumulator,
-  /// pending operator and result phase, returning the display to `0`.
+  /// pending operator, result phase and any error, returning the display to
+  /// `0`.
   void clear() => _resetState();
+
+  /// Applies [pending] to the accumulator and [operand], storing the result.
+  ///
+  /// Returns false and enters the error state on division by zero or
+  /// overflow.
+  bool _applyPending(Operator pending, double operand) {
+    if (pending == Operator.divide && operand == 0) {
+      _enterError(divideByZeroMessage);
+      return false;
+    }
+    final result = pending.apply(_accumulator!, operand);
+    if (!result.isFinite || result.abs() >= maxMagnitude) {
+      _enterError(overflowMessage);
+      return false;
+    }
+    _accumulator = result;
+    return true;
+  }
+
+  void _enterError(String message) {
+    _resetState();
+    _errorMessage = message;
+  }
 
   void _resetState() {
     _accumulator = null;
@@ -147,15 +212,21 @@ class CalculatorEngine {
     _pendingOperator = null;
     _awaitingOperand = false;
     _justEvaluated = false;
+    _errorMessage = null;
+    _hint = null;
   }
 
-  /// Formats [value] for display: whole numbers without a trailing `.0`, and
-  /// other values rounded to 10 significant digits to hide floating-point
-  /// noise (for example `0.1 + 0.2`).
+  /// Formats [value] for display: whole numbers exactly and without a
+  /// trailing `.0`, and other values rounded to 10 significant digits to hide
+  /// floating-point noise (for example `0.1 + 0.2`).
   static String formatNumber(double value) {
     if (!value.isFinite) return value.toString();
+    // Whole numbers are exact in a double below 2^53, so show every digit.
+    if (value == value.truncateToDouble() && value.abs() < maxMagnitude) {
+      return value.toInt().toString();
+    }
     final rounded = double.parse(value.toStringAsPrecision(10));
-    if (rounded == rounded.truncateToDouble() && rounded.abs() < 1e15) {
+    if (rounded == rounded.truncateToDouble() && rounded.abs() < maxMagnitude) {
       return rounded.toInt().toString();
     }
     return rounded.toString();

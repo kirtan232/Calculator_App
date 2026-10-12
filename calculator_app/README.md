@@ -41,6 +41,15 @@ the display shows `accumulator`.
 | Digit after `=` | Starts a new calculation instead of appending to the result. | New digit |
 | `AC` | Clears operand, accumulator, pending operator and result phase. | 0 |
 
+## Error handling
+
+| Situation | What happens | Recovery |
+| --- | --- | --- |
+| `8 ÷ 0 =` (or `8 ÷ 0 +`) | Display shows "Cannot divide by 0"; all pending state is cleared. | Type a digit to start fresh, or press AC. |
+| Result ≥ 1e15 | Display shows "Result too large". | Type a digit or press AC. |
+| `7 + =` (incomplete) | State is unchanged (core contract); hint "Enter a number after +". | Type the missing number. |
+| Operator or `=` during an error | Ignored; hint "Enter a number or press AC". | Type a digit or press AC. |
+
 ## Selected features (undergraduate pathway)
 
 1. **Clear / AC**: resets the display and all calculator state.

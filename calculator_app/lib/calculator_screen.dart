@@ -38,6 +38,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
               child: _Display(
                 expression: _engine.expression,
                 value: _engine.display,
+                hint: _engine.hint,
+                isError: _engine.hasError,
               ),
             ),
             Expanded(flex: 5, child: _buildKeypad()),
@@ -97,12 +99,20 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   );
 }
 
-/// Shows the expression line (e.g. `5 ×`) above the main value.
+/// Shows an optional hint, the expression line (e.g. `5 ×`) and the main
+/// value. Errors are shown in the error color in place of the value.
 class _Display extends StatelessWidget {
-  const _Display({required this.expression, required this.value});
+  const _Display({
+    required this.expression,
+    required this.value,
+    required this.hint,
+    required this.isError,
+  });
 
   final String expression;
   final String value;
+  final String? hint;
+  final bool isError;
 
   @override
   Widget build(BuildContext context) {
@@ -115,6 +125,19 @@ class _Display extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.end,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
+          if (hint != null)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.info_outline, size: 18, color: scheme.error),
+                const SizedBox(width: 6),
+                Text(
+                  hint!,
+                  key: const Key('hint'),
+                  style: TextStyle(fontSize: 16, color: scheme.error),
+                ),
+              ],
+            ),
           Text(
             expression,
             key: const Key('expression'),
@@ -132,7 +155,7 @@ class _Display extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 64,
                   fontWeight: FontWeight.w300,
-                  color: scheme.onSurface,
+                  color: isError ? scheme.error : scheme.onSurface,
                 ),
               ),
             ),
