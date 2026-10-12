@@ -137,6 +137,10 @@ class CalculatorEngine {
     _justEvaluated = true;
   }
 
+  /// Handles the `AC` (all clear) key: clears the operand, accumulator,
+  /// pending operator and result phase, returning the display to `0`.
+  void clear() => _resetState();
+
   void _resetState() {
     _accumulator = null;
     _currentOperand = '0';

@@ -5,8 +5,8 @@ import 'package:calculator_app/calculator_engine.dart';
 /// Feeds a key sequence such as `'2+3*4='` into [engine].
 ///
 /// Digits map to [CalculatorEngine.inputDigit], `+ - * /` to
-/// [CalculatorEngine.chooseOperator] and `=` to [CalculatorEngine.equals].
-/// Spaces are ignored so sequences can be written like the assignment table.
+/// [CalculatorEngine.chooseOperator], `=` to [CalculatorEngine.equals] and
+/// `C` to [CalculatorEngine.clear] (the AC key). Spaces are ignored so sequences can be written like the assignment table.
 void press(CalculatorEngine engine, String keys) {
   const operators = {
     '+': Operator.add,
@@ -23,6 +23,8 @@ void press(CalculatorEngine engine, String keys) {
       engine.chooseOperator(operators[key]!);
     } else if (key == '=') {
       engine.equals();
+    } else if (key == 'C') {
+      engine.clear();
     } else {
       throw ArgumentError('Unknown key: $key');
     }
@@ -168,6 +170,45 @@ void main() {
     });
     test('division result is rounded for display', () {
       expect(displayAfter('1/3='), '0.3333333333');
+    });
+  });
+
+  group('Clear / AC', () {
+    /// Asserts every field is back to its initial value.
+    void expectInitialState(CalculatorEngine engine) {
+      expect(engine.display, '0');
+      expect(engine.expression, '');
+      expect(engine.accumulator, isNull);
+      expect(engine.pendingOperator, isNull);
+      expect(engine.awaitingOperand, isFalse);
+      expect(engine.justEvaluated, isFalse);
+    }
+
+    test('AC while typing an operand resets everything', () {
+      final engine = CalculatorEngine();
+      press(engine, '2+3C');
+      expectInitialState(engine);
+    });
+
+    test('AC while awaiting an operand clears the pending operator', () {
+      final engine = CalculatorEngine();
+      press(engine, '2+3*C');
+      expectInitialState(engine);
+    });
+
+    test('AC after equals clears the result', () {
+      final engine = CalculatorEngine();
+      press(engine, '2+3=C');
+      expectInitialState(engine);
+    });
+
+    test('8 + 2 × AC 4 + 1 = gives 5 (no stale accumulator)', () {
+      // If AC left the accumulator (10) or × pending, this would not be 5.
+      expect(displayAfter('8+2*C4+1='), '5');
+    });
+
+    test('operator right after AC uses 0 as the first operand', () {
+      expect(displayAfter('9*C+4='), '4');
     });
   });
 

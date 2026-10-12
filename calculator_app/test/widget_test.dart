@@ -14,4 +14,22 @@ void main() {
     expect(find.text('Calculator'), findsOneWidget);
     expect(displayText(tester), '0');
   });
+
+  testWidgets('AC button resets the display and expression', (tester) async {
+    await tester.pumpWidget(const CalculatorApp());
+
+    for (final key in ['key_8', 'key_add', 'key_2', 'key_multiply']) {
+      await tester.tap(find.byKey(Key(key)));
+      await tester.pump();
+    }
+    expect(displayText(tester), '10');
+
+    await tester.tap(find.byKey(const Key('key_clear')));
+    await tester.pump();
+    expect(displayText(tester), '0');
+    expect(
+      tester.widget<Text>(find.byKey(const Key('expression'))).data,
+      isEmpty,
+    );
+  });
 }

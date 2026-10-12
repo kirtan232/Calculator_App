@@ -24,6 +24,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   void _onEquals() => setState(_engine.equals);
 
+  void _onClear() => setState(_engine.clear);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -50,18 +52,28 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       padding: const EdgeInsets.all(8),
       child: Column(
         children: [
-          _row([_digit(7), _digit(8), _digit(9), _operator(Operator.divide)]),
-          _row([_digit(4), _digit(5), _digit(6), _operator(Operator.multiply)]),
-          _row([_digit(1), _digit(2), _digit(3), _operator(Operator.subtract)]),
+          _row([
+            _CalcButton(
+              label: 'AC',
+              key: const Key('key_clear'),
+              kind: _ButtonKind.clear,
+              flex: 3,
+              onPressed: _onClear,
+            ),
+            _operator(Operator.divide),
+          ]),
+          _row([_digit(7), _digit(8), _digit(9), _operator(Operator.multiply)]),
+          _row([_digit(4), _digit(5), _digit(6), _operator(Operator.subtract)]),
+          _row([_digit(1), _digit(2), _digit(3), _operator(Operator.add)]),
           _row([
             _digit(0, flex: 2),
             _CalcButton(
               label: '=',
               key: const Key('key_equals'),
               kind: _ButtonKind.equals,
+              flex: 2,
               onPressed: _onEquals,
             ),
-            _operator(Operator.add),
           ]),
         ],
       ),
@@ -131,7 +143,7 @@ class _Display extends StatelessWidget {
   }
 }
 
-enum _ButtonKind { digit, operator, equals }
+enum _ButtonKind { digit, operator, equals, clear }
 
 /// A single keypad button that fills its share of the row.
 class _CalcButton extends StatelessWidget {
@@ -158,6 +170,10 @@ class _CalcButton extends StatelessWidget {
         scheme.onSecondaryContainer,
       ),
       _ButtonKind.equals => (scheme.primary, scheme.onPrimary),
+      _ButtonKind.clear => (
+        scheme.tertiaryContainer,
+        scheme.onTertiaryContainer,
+      ),
     };
 
     return Expanded(
